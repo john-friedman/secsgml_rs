@@ -1,0 +1,47 @@
+# Rust
+/target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.whl
+.eggs/
+*.egg
+
+# Python virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Maturin
+.maturin/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.prof
+
+# Build artifacts
+*.dylib
+*.dll
