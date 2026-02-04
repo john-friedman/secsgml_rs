@@ -36,7 +36,7 @@ pub fn parse_sgml_into_memory(
         filter_document_types,
         keep_filtered_metadata,
         standardize_metadata,
-        parallel: true,
+        parallel: true, //reenablew TODO
     };
     
     let result = parse_sgml(data, options)?;

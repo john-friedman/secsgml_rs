@@ -25,3 +25,4 @@ pyo3 = { version = "0.22", features = ["extension-module"], optional = true }
 [profile.release]
 lto = true
 codegen-units = 1
+debug = true

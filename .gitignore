@@ -45,3 +45,5 @@ htmlcov/
 # Build artifacts
 *.dylib
 *.dll
+
+test_data/*
