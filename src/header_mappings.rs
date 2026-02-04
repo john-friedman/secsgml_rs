@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
+use std::borrow::Cow;
 
 /// Mapping entry with optional regex pattern for value extraction
 pub struct HeaderMapping {
@@ -95,32 +96,35 @@ pub fn get_header_mappings() -> &'static HashMap<&'static str, HeaderMapping> {
 }
 
 /// Standardize a key: lookup in mapping or convert to lowercase kebab-case
-pub fn standardize_key(key: &str) -> String {
-    let key_lower = key.to_lowercase();
+pub fn standardize_key(key: &str) -> Cow<'static, str> {
+    // Fast path: try direct lookup with ASCII lowercase comparison
+    let mappings = get_header_mappings();
     
-    if let Some(mapping) = get_header_mappings().get(key_lower.as_str()) {
-        return mapping.to.to_string();
+    // Check if key matches any known mapping (case-insensitive)
+    for (known_key, mapping) in mappings.iter() {
+        if key.eq_ignore_ascii_case(known_key) {
+            return Cow::Borrowed(mapping.to);  // Zero allocation!
+        }
     }
     
-    // Replace whitespace sequences with single hyphen
-    let mut result = String::with_capacity(key_lower.len());
+    // Unknown key - do full transformation
+    let mut result = String::with_capacity(key.len());
     let mut prev_was_space = false;
     
-    for c in key_lower.chars() {
+    for c in key.chars() {
         if c.is_whitespace() {
             if !prev_was_space && !result.is_empty() {
                 result.push('-');
             }
             prev_was_space = true;
         } else {
-            result.push(c);
+            result.push(c.to_ascii_lowercase());
             prev_was_space = false;
         }
     }
     
-    result
+    Cow::Owned(result)
 }
-
 /// Apply regex transformation if the key has one defined
 pub fn transform_value(key: &str, value: &str) -> String {
     let key_lower = key.to_lowercase();

@@ -5,7 +5,6 @@ use crate::header_mappings::{standardize_key, transform_value};
 use crate::types::*;
 use crate::uudecode::{decode_uuencoded, is_uuencoded};
 use memchr::memmem;
-use rayon::prelude::*;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
@@ -36,23 +35,13 @@ pub fn parse_sgml(data: &[u8], options: ParseOptions) -> Result<ParsedSubmission
     let (mut submission_meta, format) =
         parse_submission_metadata(&data[..header_end], options.standardize_metadata)?;
 
-    // Parse documents (potentially in parallel)
-    let parsed_docs: Vec<(DocumentMetadata, Vec<u8>)> =
-        if options.parallel && doc_boundaries.len() > 1 {
-            doc_boundaries
-                .par_iter()
-                .map(|(start, end)| {
-                    parse_single_document(&data[*start..*end], format, options.standardize_metadata)
-                })
-                .collect::<Result<Vec<_>>>()?
-        } else {
-            doc_boundaries
-                .iter()
-                .map(|(start, end)| {
-                    parse_single_document(&data[*start..*end], format, options.standardize_metadata)
-                })
-                .collect::<Result<Vec<_>>>()?
-        };
+    // Parse documents sequentially
+    let parsed_docs: Vec<(DocumentMetadata, Vec<u8>)> = doc_boundaries
+        .iter()
+        .map(|(start, end)| {
+            parse_single_document(&data[*start..*end], format, options.standardize_metadata)
+        })
+        .collect::<Result<Vec<_>>>()?;
 
     // Split metadata and content
     let (doc_metas, documents): (Vec<_>, Vec<_>) = parsed_docs.into_iter().unzip();
@@ -68,7 +57,6 @@ pub fn parse_sgml(data: &[u8], options: ParseOptions) -> Result<ParsedSubmission
         format,
     })
 }
-
 /// Find all (start, end) byte positions of <DOCUMENT>...</DOCUMENT> blocks
 fn find_document_boundaries(data: &[u8]) -> Vec<(usize, usize)> {
     let mut boundaries = Vec::new();
@@ -131,7 +119,6 @@ fn parse_single_document(
 fn parse_document_metadata(data: &[u8], standardize: bool) -> DocumentMetadata {
     let mut fields = HashMap::with_capacity(32);
 
-
     for line in data.split(|&b| b == b'\n') {
         let line = trim(line);
         if line.is_empty() {
@@ -146,7 +133,7 @@ fn parse_document_metadata(data: &[u8], standardize: bool) -> DocumentMetadata {
 
                 let (final_key, final_value) = if standardize {
                     (
-                        standardize_key(&key_str),
+                        standardize_key(&key_str).into_owned(),
                         transform_value(&key_str, &value_str),
                     )
                 } else {
@@ -238,7 +225,6 @@ fn parse_submission_metadata(
 fn parse_tab_metadata(data: &[u8], standardize: bool) -> HashMap<String, MetadataValue> {
     let mut root: HashMap<String, MetadataValue> = HashMap::with_capacity(128);
 
-
     // Track path through nested structure as keys
     let mut path: Vec<String> = Vec::new();
 
@@ -272,7 +258,7 @@ fn parse_tab_metadata(data: &[u8], standardize: bool) -> HashMap<String, Metadat
             {
                 if let Some((key, value)) = parse_sec_header_line(line_content) {
                     let final_key = if standardize {
-                        standardize_key(&key)
+                        standardize_key(&key).into_owned()
                     } else {
                         key
                     };
@@ -284,7 +270,7 @@ fn parse_tab_metadata(data: &[u8], standardize: bool) -> HashMap<String, Metadat
                 let value = line_content[colon_pos + 1..].trim();
 
                 let final_key = if standardize {
-                    standardize_key(key)
+                    standardize_key(key).into_owned()
                 } else {
                     key.to_string()
                 };
@@ -325,7 +311,7 @@ fn parse_tab_metadata(data: &[u8], standardize: bool) -> HashMap<String, Metadat
                 }
 
                 let final_key = if standardize {
-                    standardize_key(key)
+                    standardize_key(key).into_owned()
                 } else {
                     key.to_string()
                 };
@@ -352,7 +338,6 @@ fn parse_tab_metadata(data: &[u8], standardize: bool) -> HashMap<String, Metadat
 /// Parse archive format metadata (XML-like tags with explicit closing tags)
 fn parse_archive_metadata(data: &[u8], standardize: bool) -> HashMap<String, MetadataValue> {
     let mut root: HashMap<String, MetadataValue> = HashMap::with_capacity(128);
-
 
     // Track path through nested structure
     let mut path: Vec<String> = Vec::new();
@@ -387,8 +372,9 @@ fn parse_archive_metadata(data: &[u8], standardize: bool) -> HashMap<String, Met
         let value_str = bytes_to_str(value);
 
         if standardize {
-            let final_key = standardize_key(&key_str);
-            
+            let final_key = standardize_key(&key_str).into_owned();
+
+
             if !value.is_empty() {
                 // Has value - it's a field
                 let final_value = transform_value(&key_str, &value_str);
@@ -417,9 +403,10 @@ fn parse_archive_metadata(data: &[u8], standardize: bool) -> HashMap<String, Met
                 );
             }
         } else {
-            let final_key = key_str.into_owned();
+            let final_key = key_str.into_owned(); 
+
             let final_value = value_str.into_owned();
-            
+
             if !value.is_empty() {
                 // Has value - it's a field
                 insert_at_path(
@@ -702,7 +689,6 @@ fn find_double_newline(data: &[u8]) -> Option<usize> {
 fn bytes_to_str(data: &[u8]) -> Cow<'_, str> {
     String::from_utf8_lossy(data)
 }
-
 
 /// Trim leading whitespace from byte slice
 fn trim_start(data: &[u8]) -> &[u8] {

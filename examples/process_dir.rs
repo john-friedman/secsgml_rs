@@ -4,7 +4,7 @@ use std::path::Path;
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let test_dir = "test_data/20160112";
+    let test_dir = "test_data/20040401";
 
     let start_total = Instant::now();
     let mut parse_time_total = 0.0;

@@ -106,15 +106,12 @@ pub struct ParseOptions {
     pub keep_filtered_metadata: bool,
     /// Standardize keys to lowercase kebab-case
     pub standardize_metadata: bool,
-    /// Process documents in parallel
-    pub parallel: bool,
 }
 
 impl ParseOptions {
     pub fn new() -> Self {
         Self {
             standardize_metadata: true,
-            parallel: true,
             ..Default::default()
         }
     }
@@ -122,7 +119,6 @@ impl ParseOptions {
     pub fn preserve_original() -> Self {
         Self {
             standardize_metadata: false,
-            parallel: true,
             ..Default::default()
         }
     }
@@ -131,13 +127,7 @@ impl ParseOptions {
         self.filter_document_types = types;
         self
     }
-
-    pub fn with_parallel(mut self, parallel: bool) -> Self {
-        self.parallel = parallel;
-        self
-    }
 }
-
 /// Result of parsing an SGML submission
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParsedSubmission {
