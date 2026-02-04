@@ -16,14 +16,14 @@ use pyo3::exceptions::PyValueError;
 ///     Tuple of (metadata_json_bytes, list_of_document_bytes)
 #[pyfunction]
 #[pyo3(signature = (data, filter_document_types=vec![], keep_filtered_metadata=false, standardize_metadata=true))]
-fn parse_sgml_to_json(
+fn parse_sgml_into_memory(
     py: Python<'_>,
     data: &[u8],
     filter_document_types: Vec<String>,
     keep_filtered_metadata: bool,
     standardize_metadata: bool,
 ) -> PyResult<(PyObject, PyObject)> {
-    let (metadata_json, documents) = crate::parse_sgml_to_json(
+    let (metadata_json, documents) = crate::parse_sgml_into_memory(
         data,
         filter_document_types,
         keep_filtered_metadata,
@@ -42,9 +42,21 @@ fn parse_sgml_to_json(
     Ok((py_metadata, py_documents.into_py(py)))
 }
 
+#[pyfunction]
+fn decode_uu(py: Python<'_>, data: &[u8]) -> PyResult<PyObject> {
+    let decoded = crate::decode_uuencoded(data);
+    Ok(PyBytes::new_bound(py, &decoded).into())
+}
+
+
+
 /// Python module definition
 #[pymodule]
-fn secsgml_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(parse_sgml_to_json, m)?)?;
+fn secsgmlrs(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(parse_sgml_into_memory, m)?)?;
+    m.add_function(wrap_pyfunction!(decode_uu, m)?)?;
+    m.add("__version__", env!("CARGO_PKG_VERSION"))?; 
     Ok(())
 }
+
+

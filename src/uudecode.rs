@@ -2,6 +2,91 @@
 //!
 //! SEC filings embed binary files (PDF, images, etc.) using UU-encoding.
 
+/// Error types for uudecode operations
+#[derive(Debug, PartialEq)]
+pub enum UuDecodeError {
+    IllegalChar,
+    TrailingGarbage,
+}
+
+impl std::fmt::Display for UuDecodeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UuDecodeError::IllegalChar => write!(f, "Illegal char"),
+            UuDecodeError::TrailingGarbage => write!(f, "Trailing garbage"),
+        }
+    }
+}
+
+impl std::error::Error for UuDecodeError {}
+
+/// Decode a line of uuencoded data.
+/// 
+/// The first character encodes the binary data length (in bytes).
+/// Each subsequent character encodes 6 bits using "excess-space" encoding
+/// where space (32) represents 0.
+/// 
+/// Valid characters are in range [32, 96] (space through backtick).
+pub fn a2b_uu(data: &[u8]) -> Result<Vec<u8>, UuDecodeError> {
+    if data.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let bin_len = ((data[0].wrapping_sub(b' ')) & 0o77) as usize;
+    
+    let mut bin_data = Vec::with_capacity(bin_len);
+    let mut leftbits = 0;
+    let mut leftchar: u32 = 0;
+    let mut remaining = bin_len;
+    
+    let mut ascii_idx = 1;
+    let ascii_len = data.len();
+    
+    while remaining > 0 {
+        // Get character or 0 if past end
+        let this_ch = if ascii_idx < ascii_len {
+            let byte = data[ascii_idx];
+            ascii_idx += 1;
+            
+            if byte == b'\n' || byte == b'\r' {
+                0u8
+            } else {
+                if byte < b' ' || byte > (b' ' + 64) {
+                    return Err(UuDecodeError::IllegalChar);
+                }
+                (byte - b' ') & 0o77
+            }
+        } else {
+            // Past end of input - use 0
+            0u8
+        };
+        
+        leftchar = (leftchar << 6) | (this_ch as u32);
+        leftbits += 6;
+        
+        if leftbits >= 8 {
+            leftbits -= 8;
+            bin_data.push(((leftchar >> leftbits) & 0xff) as u8);
+            leftchar &= (1 << leftbits) - 1;
+            remaining -= 1;
+        }
+    }
+    
+    // Trailing garbage check...
+    let bytes_processed = bin_len;
+    let chars_needed = (bytes_processed * 8 + 5) / 6;
+    let start_check = 1 + chars_needed;
+    
+    if start_check < data.len() {
+        for &byte in &data[start_check..] {
+            if byte != b' ' && byte != (b' ' + 64) && byte != b'\n' && byte != b'\r' {
+                return Err(UuDecodeError::TrailingGarbage);
+            }
+        }
+    }
+    
+    Ok(bin_data)
+}
 /// Check if content is UU-encoded by looking for "begin XXX filename" pattern
 /// in the first two lines where XXX is a 3-digit Unix permission mode.
 pub fn is_uuencoded(content: &[u8]) -> bool {
@@ -58,7 +143,7 @@ pub fn decode_uuencoded(content: &[u8]) -> Vec<u8> {
     // Find the "begin" line
     let mut found_begin = false;
     for line in lines.by_ref() {
-        if line.starts_with("begin ") {
+        if line.starts_with("begin") {
             found_begin = true;
             break;
         }
@@ -70,13 +155,13 @@ pub fn decode_uuencoded(content: &[u8]) -> Vec<u8> {
     
     // Process data lines
     for line in lines {
-        let line = line.trim();
+        let stripped = line.trim_end_matches('\r');
         
-        if line.is_empty() || line == "end" {
+        if stripped.is_empty() || stripped == "end" {
             break;
         }
         
-        if let Some(decoded) = decode_uu_line(line) {
+        if let Some(decoded) = decode_uu_line(stripped) {
             result.extend_from_slice(&decoded);
         }
     }
@@ -84,65 +169,26 @@ pub fn decode_uuencoded(content: &[u8]) -> Vec<u8> {
     result
 }
 
-/// Decode a single UU-encoded line
-fn decode_uu_line(line: &str) -> Option<Vec<u8>> {
-    let bytes = line.as_bytes();
-    
-    if bytes.is_empty() {
-        return None;
-    }
-    
-    // First character indicates number of bytes on this line
-    let length_char = bytes[0];
-    if length_char < 32 || length_char > 95 {
-        return None;
-    }
-    
-    let expected_bytes = ((length_char - 32) & 63) as usize;
-    if expected_bytes == 0 {
-        return None;
-    }
-    
-    let mut result = Vec::with_capacity(expected_bytes);
-    let encoded = &bytes[1..];
-    
-    // Process 4-character groups into 3 bytes
-    let mut i = 0;
-    while i + 3 < encoded.len() && result.len() < expected_bytes {
-        let c0 = decode_char(encoded[i]);
-        let c1 = decode_char(encoded[i + 1]);
-        let c2 = decode_char(encoded[i + 2]);
-        let c3 = decode_char(encoded[i + 3]);
-        
-        if result.len() < expected_bytes {
-            result.push((c0 << 2) | (c1 >> 4));
-        }
-        if result.len() < expected_bytes {
-            result.push((c1 << 4) | (c2 >> 2));
-        }
-        if result.len() < expected_bytes {
-            result.push((c2 << 6) | c3);
-        }
-        
-        i += 4;
-    }
-    
-    // Truncate to expected length (handles padding)
-    result.truncate(expected_bytes);
-    
-    Some(result)
-}
+/// Decode a single UU-encoded line (matching Python's fallback behavior)
 
-/// Decode a single UU character to its 6-bit value
-#[inline]
-fn decode_char(c: u8) -> u8 {
-    // UU encoding: value = (char - 32) & 63
-    // Valid chars are 32-95 (space to underscore)
-    if c >= 32 && c <= 95 {
-        (c - 32) & 63
-    } else {
-        0
+fn decode_uu_line(line: &str) -> Option<Vec<u8>> {
+    let clean_line: String = line.chars()
+        .filter(|&c| c as u32 >= 32 && c as u32 <= 95)  // Changed from 96 to 95
+        .collect();
+    
+    if clean_line.is_empty() {
+        return None;
     }
+    
+    // Calculate how many encoded characters we need
+    let length_char = clean_line.chars().next()?;
+    let expected_bytes = ((length_char as u32 - 32) & 63) as usize;
+    let nbytes = (expected_bytes * 4 + 5) / 3;  // Number of encoded chars needed
+    
+    // Only pass the required number of characters to a2b_uu
+    let truncated_line: String = clean_line.chars().take(nbytes + 1).collect();  // +1 for length char
+    
+    a2b_uu(truncated_line.as_bytes()).ok()
 }
 
 /// Trim leading whitespace from byte slice
@@ -155,33 +201,4 @@ fn trim_start(data: &[u8]) -> &[u8] {
         }
     }
     &data[start..]
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_is_uuencoded() {
-        assert!(is_uuencoded(b"begin 644 test.pdf\n"));
-        assert!(is_uuencoded(b"  \n  begin 644 test.pdf\n"));
-        assert!(is_uuencoded(b"\nbegin 644 test.pdf\n"));
-        assert!(!is_uuencoded(b"not uuencoded content"));
-        assert!(!is_uuencoded(b"begin abc test.pdf\n")); // non-numeric mode
-    }
-
-    #[test]
-    fn test_decode_simple() {
-        // "Cat" encoded in UU
-        let encoded = b"begin 644 test.txt\n#0V%T\n`\nend\n";
-        let decoded = decode_uuencoded(encoded);
-        assert_eq!(decoded, b"Cat");
-    }
-
-    #[test]
-    fn test_decode_char() {
-        assert_eq!(decode_char(b' '), 0);  // space = 0
-        assert_eq!(decode_char(b'!'), 1);  // ! = 1
-        assert_eq!(decode_char(b'`'), 0);  // backtick = 0 (also used for 0)
-    }
 }

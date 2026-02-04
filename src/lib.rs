@@ -5,9 +5,10 @@
 mod error;
 mod header_mappings;
 mod types;
-mod uudecode;
+pub mod uudecode;
 mod parse;
-mod write;
+
+
 
 #[cfg(feature = "python")]
 mod python;
@@ -18,13 +19,14 @@ pub use types::{
     SubmissionFormat, SubmissionMetadata,
 };
 pub use parse::{parse_sgml, parse_sgml_file};
-pub use write::{write_to_tar, write_sgml_file_to_tar, write_sgml_bytes_to_tar};
+pub use uudecode::decode_uuencoded;
+
 
 /// Parse SGML and return JSON metadata bytes + document contents.
 /// 
 /// This is the primary function for Python integration.
 /// Returns (metadata_json_bytes, document_contents).
-pub fn parse_sgml_to_json(
+pub fn parse_sgml_into_memory(
     data: &[u8],
     filter_document_types: Vec<String>,
     keep_filtered_metadata: bool,
@@ -44,3 +46,4 @@ pub fn parse_sgml_to_json(
     
     Ok((metadata_json, result.documents))
 }
+

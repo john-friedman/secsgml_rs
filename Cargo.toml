@@ -1,12 +1,12 @@
 [package]
-name = "secsgml"
-version = "0.1.0"
+name = "secsgmlrs"
+version = "0.1.1"
 edition = "2021"
 description = "SEC SGML filing parser"
 license = "MIT"
 
 [lib]
-name = "secsgml"
+name = "secsgmlrs"
 crate-type = ["cdylib", "rlib"]
 
 [features]
