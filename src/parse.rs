@@ -129,7 +129,8 @@ fn parse_single_document(
 
 /// Parse document metadata block (key-value pairs like <TYPE>10-K)
 fn parse_document_metadata(data: &[u8], standardize: bool) -> DocumentMetadata {
-    let mut fields = HashMap::new();
+    let mut fields = HashMap::with_capacity(32);
+
 
     for line in data.split(|&b| b == b'\n') {
         let line = trim(line);
@@ -235,7 +236,8 @@ fn parse_submission_metadata(
 /// Parse tab-delimited format metadata
 /// This format uses indentation (tabs) to indicate nesting
 fn parse_tab_metadata(data: &[u8], standardize: bool) -> HashMap<String, MetadataValue> {
-    let mut root: HashMap<String, MetadataValue> = HashMap::new();
+    let mut root: HashMap<String, MetadataValue> = HashMap::with_capacity(128);
+
 
     // Track path through nested structure as keys
     let mut path: Vec<String> = Vec::new();
@@ -349,7 +351,8 @@ fn parse_tab_metadata(data: &[u8], standardize: bool) -> HashMap<String, Metadat
 /// Parse archive format metadata (XML-like tags with explicit closing tags)
 /// Parse archive format metadata (XML-like tags with explicit closing tags)
 fn parse_archive_metadata(data: &[u8], standardize: bool) -> HashMap<String, MetadataValue> {
-    let mut root: HashMap<String, MetadataValue> = HashMap::new();
+    let mut root: HashMap<String, MetadataValue> = HashMap::with_capacity(128);
+
 
     // Track path through nested structure
     let mut path: Vec<String> = Vec::new();

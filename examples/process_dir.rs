@@ -4,7 +4,7 @@ use std::path::Path;
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let test_dir = "test_data/20040401";
+    let test_dir = "test_data/20160112";
 
     let start_total = Instant::now();
     let mut parse_time_total = 0.0;
@@ -64,7 +64,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn process_single_file(
     path: &Path,
-    filename: &str,
+    _filename: &str,
     parse_time_total: &mut f64,
 ) -> Result<usize, Box<dyn std::error::Error>> {
     // Read file (NOT timed)
