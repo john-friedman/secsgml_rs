@@ -20,3 +20,6 @@ Files benchmarked: 3530
 Python: 1572.03 ms
 Python Rust Bindings:   1051.08 ms (we removed parallelism to support better parellism in other areas)
 Rust: 500ms
+
+# Todo
+make into crate for installation + setup github workflow

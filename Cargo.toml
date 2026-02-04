@@ -4,6 +4,11 @@ version = "0.1.1"
 edition = "2021"
 description = "SEC SGML filing parser"
 license = "MIT"
+authors = ["John Friedman johnfriedman@datamule.xyz"]
+repository = "https://github.com/john-friedman/secsgml_rs"
+readme = "readme.md"
+keywords = ["sec", "sgml", "parser", "edgar","nc"]
+categories = ["parsing"]
 
 [lib]
 name = "secsgmlrs"
