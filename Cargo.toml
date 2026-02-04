@@ -1,6 +1,6 @@
 [package]
 name = "secsgmlrs"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "SEC SGML filing parser"
 license = "MIT"

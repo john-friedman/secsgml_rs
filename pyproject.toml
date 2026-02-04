@@ -4,14 +4,23 @@ build-backend = "maturin"
 
 [project]
 name = "secsgmlrs"
-dynamic = ["version"]
+version = "0.1.1"
 description = "SEC SGML filing parser"
+readme = "readme.md"
 requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+    { name = "John Friedman", email = "johnfriedman@datamule.xyz" }
+]
+keywords = ["sec", "sgml", "parser", "edgar", "nc"]
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
+
+[project.urls]
+Repository = "https://github.com/john-friedman/secsgml_rs"
 
 [tool.maturin]
 features = ["python"]
